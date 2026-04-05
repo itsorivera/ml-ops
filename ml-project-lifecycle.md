@@ -1,6 +1,6 @@
 # Machine Learning Project Life Cycle
 
-![ML Project Life Cycle](./assets/ml-lifecycle.png)
+![ML Project Life Cycle](./w1-deployment/assets/ml-lifecycle.png)
 
 *Source: [Machine Learning in production by Andrew Ng - DeepLearning.AI](https://www.deeplearning.ai/courses/machine-learning-in-production/)*  
 
