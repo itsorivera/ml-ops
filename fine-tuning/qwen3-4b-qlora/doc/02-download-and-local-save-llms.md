@@ -158,3 +158,83 @@ Cuando descargas un modelo como `Qwen3-4B`, lo que realmente llega a tu carpeta 
 
 ### Resumen
 Un LLM no es un programa `.py` ni es un archivo `.pickle`. Un LLM es **una gigantesca base de datos de matrices numéricas estáticas (`.safetensors`)** que una arquitectura escrita en PyTorch lee y utiliza para hacer multiplicaciones de álgebra lineal en tu GPU.
+
+
+---
+
+explicame por que tengo cosas en /blobs y por que tengo otras cosas en snapshots/
+
+cuales me sirven y cuales no como representaiones de matrices y todo lo que me has explicado
+
+[](/fine-tuning/qwen3-4b-qlora/assets/files-system-hf.png)
+
+---
+
+¡Esta captura es la prueba perfecta de cómo funciona Hugging Face por dentro! Si te fijas bien en los tamaños de los archivos, verás un "espejo" exacto entre ambas carpetas.
+
+Vamos a responder punto por punto:
+
+---
+
+### 1. ¿Por qué tienes cosas en `/blobs` y otras en `/snapshots`?
+
+Es un truco del sistema de archivos para **ahorrar espacio y gestionar versiones** (idéntico a cómo funciona Git):
+
+* **La carpeta `/blobs` (El Almacén Real):** 
+  Aquí es donde **realmente residen los datos físicos en tu disco duro**. Cada archivo recibe un nombre que es un código criptográfico (hash).
+  
+* **La carpeta `/snapshots/...` (El Escaparate Humano / Enlaces Simbólicos):**
+  Los archivos que ves en `snapshots/` con nombres comprensibles (`config.json`, `LICENSE`, `model-00001-of-00003.safetensors`) **no son copias duplicadas de los datos**. Son **accesos directos (symlinks)** que apuntan hacia los archivos de la carpeta `blobs`.
+
+#### Fíjate en los tamaños de tu propia imagen:
+Compara el archivo de abajo en `snapshots/` con uno de arriba en `blobs/`:
+
+| En `snapshots/` (Nombre legible) | Tamaño | En `blobs/` (Hash real al que apunta) | Tamaño |
+| :--- | :--- | :--- | :--- |
+| `model-00001-of-00003.safetensors` | **3774.5 MB** | `328a91d3122359d5547f...` | **3774.5 MB** |
+| `merges.txt` | **1.6 MB** | `31349551d90c7606f3...` | **1.6 MB** |
+| `LICENSE` | **11.1 KB** | `6634c8cc3133b3848e...` | **11.1 KB** |
+| `config.json` | **726 B** | `e49eccdc32f36da9c0...` | **726 B** |
+| `generation_config.json` | **239 B** | `20a8a9156fc8c3f252...` | **239 B** |
+| `.gitattributes` | **1.5 KB** | `52373fe24473b1aa44...` | **1.5 KB** |
+
+**¿Por qué Hugging Face hace esto?**
+Si mañana actualizan el modelo y solo cambian el archivo `config.json` (726 B), Hugging Face solo descargará un blob nuevo de 726 B y creará una nueva carpeta en `snapshots/`. No tendrá que volver a descargar los 8 Gigabytes de matrices porque ya los tiene en `blobs/`.
+
+---
+
+### 2. ¿Cuáles te sirven y cuáles NO como representación de matrices?
+
+De todos esos archivos, podemos dividirlos en tres categorías claras:
+
+#### A. Las matrices del cerebro (LO QUE BUSCAS)
+Son los archivos **`.safetensors`** (los gigantes):
+* `model-00001-of-00003.safetensors` (en el blob `328a91d3...` de **3774.5 MB**).
+* `model-00002-of-00003.safetensors` (en el blob `6cd087b3...` de **3802.7 MB**).
+* `model-00003-of-00003.safetensors` (en el blob `e4bf4369...` de **95.0 MB**, que contiene las últimas capas o la capa final de salida).
+
+> **Estos tres archivos contienen el 100% de los pesos y matrices de la red neuronal.** Cuando ejecutes la celda de cuantización (`BitsAndBytesConfig`), **solo estos archivos gigantes** serán leídos y comprimidos a 4 bits dentro de tu GPU.
+
+#### B. El plano arquitectónico (Imprescindibles para armar la red)
+* **`config.json` (726 B):** No contiene matrices ni números de pesos, pero le dice a PyTorch: *"Crea una red con 32 capas, tamaño oculto 4096, etc."*. Sin este archivo, PyTorch no sabría qué forma tienen las matrices que va a inyectar.
+* **`generation_config.json` (239 B):** Parámetros por defecto para cuando el modelo genera texto (temperatura, top_p, token de parada, etc.).
+
+#### C. El traductor de texto a números (El Tokenizador)
+* **`merges.txt` (1.6 MB)** y los archivos medianos que ves en `blobs` (como el de **10.9 MB** o **2.6 MB**, que suelen ser `vocab.json` o `tokenizer.json`):
+  * **No son matrices de la red neuronal.** Son tablas de búsqueda de vocabulario: le enseñan al modelo qué ID numérico corresponde a cada sub-palabra o sílaba del lenguaje humano.
+
+#### D. Metadatos que no intervienen en el cálculo
+* **`LICENSE` (11.1 KB):** Texto legal de derechos de autor.
+* **`.gitattributes` (1.5 KB):** Configuración para Git Large File Storage (LFS).
+
+---
+
+### Resumen para tu Fine-Tuning:
+
+* Cuando en Python escribes:
+  ```python
+  AutoModelForCausalLM.from_pretrained(local_model_path, quantization_config=quantization)
+  ```
+  Python acude a la carpeta **`snapshots/...`** porque entiende sus nombres.
+* Lee `config.json` para armar la red vacía en memoria.
+* Sigue los accesos directos hacia los **`blobs`** de 3.7 GB para volcar las matrices en la GPU cuantizándolas a 4 bits.
