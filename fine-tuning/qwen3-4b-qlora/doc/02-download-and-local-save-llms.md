@@ -1,6 +1,6 @@
 Esta captura muestra exactamente la "trastienda" de cómo funciona Hugging Face por dentro. Vamos a desgranar cada una de tus dudas con metáforas sencillas.
 
-[](/fine-tuning/qwen3-4b-qlora/assets/llm-downloaded.png)
+![](/fine-tuning/qwen3-4b-qlora/assets/llm-downloaded.png)
 
 ---
 
@@ -166,7 +166,7 @@ explicame por que tengo cosas en /blobs y por que tengo otras cosas en snapshots
 
 cuales me sirven y cuales no como representaiones de matrices y todo lo que me has explicado
 
-[](/fine-tuning/qwen3-4b-qlora/assets/files-system-hf.png)
+![](/fine-tuning/qwen3-4b-qlora/assets/files-system-hf.png)
 
 ---
 
