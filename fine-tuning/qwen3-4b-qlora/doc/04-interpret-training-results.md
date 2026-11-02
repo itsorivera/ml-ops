@@ -111,11 +111,7 @@ Donde:
 
 ### 3. Diagrama Arquitectónico Mermaid
 
-````artifact
-id: qlora-architecture-qwen
-name: Arquitectura QLoRA en Transformer Qwen
-type: mermaid
-content: |-
+```mermaid
   flowchart TD
       subgraph INPUT["Flujo de Entrada"]
           TOK["Tokens de Entrada (Prompt Médico + Historial)"] --> EMB["Embedding Layer (Congelada)"]
